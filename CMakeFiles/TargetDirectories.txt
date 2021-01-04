@@ -1,0 +1,10 @@
+/home/shijia/Public/ScDebug/CMakeFiles/rebuild_cache.dir
+/home/shijia/Public/ScDebug/CMakeFiles/ext.dir
+/home/shijia/Public/ScDebug/CMakeFiles/tacstmt.dir
+/home/shijia/Public/ScDebug/CMakeFiles/edit_cache.dir
+/home/shijia/Public/ScDebug/CMakeFiles/tacop.dir
+/home/shijia/Public/ScDebug/CMakeFiles/main.dir
+/home/shijia/Public/ScDebug/CMakeFiles/insp.dir
+/home/shijia/Public/ScDebug/CMakeFiles/transblock.dir
+/home/shijia/Public/ScDebug/CMakeFiles/partion.dir
+/home/shijia/Public/ScDebug/CMakeFiles/tac.dir

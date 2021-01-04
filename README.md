@@ -5,7 +5,6 @@ ScDebug是基于LLVM/Clang 3.6.2实现的，所以工具需要安装LLVM3.6.2及
 ![img](http://www.softlang.cn/images/e/e7/Image-20210104192308418.png)
 
 
-
 直接执行install_scdebug.sh进行编译安装，或执行cmake CMakeLists.txt 指令生成MakeFile文件，然后执行make命令，编译ScDebug，编译过程如下图 所示。
 
 ![img](http://www.softlang.cn/images/7/73/Image-20210104192326070.png)

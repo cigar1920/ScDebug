@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <stack>
+
 using namespace std;
 #define DOUBLEFACTOR 134217729
 #define ULP 1.0e-30

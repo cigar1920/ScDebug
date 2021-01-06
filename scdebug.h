@@ -8,14 +8,17 @@
 #include <iomanip>
 #include <fstream>
 #include <hash_map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <stack>
+using namespace std;
 #define DOUBLEFACTOR 134217729
 #define ULP 1.0e-30
 using namespace __gnu_cxx; //hash_map need
 typedef uint64_t Addr;
 static long int callExp = 0, oldCallExp = 0;
+
 
 class Real
 {
@@ -72,7 +75,6 @@ class Shadow
 private:
     Addr argAddress;
     ArgType type;
-
     std::string lastop;
 
 public:
@@ -154,6 +156,18 @@ Shadow ::~Shadow()
 {
 }
 
+
+struct valueCache
+{
+    Addr address;
+    Shadow shadowValue;
+    // valueCache(){
+    //     address = 0x0;
+    //     shadowValue = 0x0;
+    // }
+};
+
+static valueCache shadowCache[256];
 static hash_map<Addr, Shadow> ShadowMap;
 static std::stack<Real> callExpStack;
 //
@@ -195,22 +209,51 @@ static hash_map<Addr, int> FloatMap;
 inline bool shadowExist(Addr address)
 {
     if (ShadowMap.find(address) == ShadowMap.end())
+    {
         return false;
+    }
     else
+    {
         return true;
+    }
+}
+inline bool shadowExist(Addr address, Shadow &shadowValue)
+{
+    int mask = address & 0xff;
+    valueCache &valueInCache = shadowCache[mask];
+    if (address == valueInCache.address)
+    {
+        shadowValue = (valueInCache.shadowValue);
+        return true;
+    }
+    else
+    {
+        hash_map<Addr, Shadow>::iterator findIt = ShadowMap.find(address);
+        if (findIt == ShadowMap.end())
+        {
+            return false;
+        }
+        else
+        {
+            shadowValue = findIt->second;
+            valueInCache.address = address;
+            valueInCache.shadowValue = shadowValue;
+            return true;
+        }
+    }
 }
 
 inline Real getReal(std::string varName, Addr address)
 {
     Real desReal;
-    if (!shadowExist(address))
+    Shadow shadowValue;
+    if (shadowExist(address, shadowValue))
     {
-        // std::cout << "sorry there  is no shadow of " << varName << std::endl;
+        desReal = shadowValue.getValue();
     }
     else
     {
-        Shadow shadowValue = ShadowMap[address];
-        desReal = shadowValue.getValue();
+        // std::cout << "sorry there  is no shadow of " << varName << std::endl;
     }
     return desReal;
 }
@@ -235,14 +278,14 @@ inline double getAbsError(Addr address)
 }
 inline void printVarInfo(std::string argStr, Addr address)
 {
-    if (!shadowExist(address))
+    Shadow ShadowTmp;
+    if (!shadowExist(address, ShadowTmp))
     {
         std::cout << "\n==" << getpid() << "== ";
         std::cout << "sorry there  is no shadow of " << argStr << std::endl;
     }
     else
     {
-        Shadow ShadowTmp = ShadowMap[address];
         std::cout << "\n==" << getpid() << "== ";
         std::cout << argStr << "`s type is " << ShadowTmp.getTypeString() << ",and it`s address is 0x";
         printf("%X\n", address);
@@ -269,7 +312,7 @@ inline Real TwoSum(twoSumType a, twoSumType b)
 }
 
 template <class subType>
-inline Real Sub2(vector<Addr> p) // cost 7 times
+inline Real Sub2(vector<Addr> &p) // cost 7 times
 {
     int len = p.size();
     if (len == 0)
@@ -277,17 +320,18 @@ inline Real Sub2(vector<Addr> p) // cost 7 times
         return 0;
     }
     double s, e, y;
-    if (shadowExist(p[0]))
+    Shadow shadowValueLeft, shadowValueRight;
+    if (shadowExist(p[0], shadowValueLeft))
     {
-        s = ShadowMap[p[0]].value.z;
-        e = ShadowMap[p[0]].value.zz;
+        s = shadowValueLeft.value.z;
+        e = shadowValueLeft.value.zz;
     }
     else
     {
         s = getValuebyAddr<subType>(p[0]);
         e = 0.0;
     }
-    if (!shadowExist(p[1]))
+    if (!shadowExist(p[1], shadowValueRight))
     {
         Real fpp = TwoSum<subType>(s, -getValuebyAddr<subType>(p[1]));
         s = fpp.z;
@@ -295,15 +339,15 @@ inline Real Sub2(vector<Addr> p) // cost 7 times
     }
     else
     {
-        Real fpp = TwoSum<subType>(s, -ShadowMap[p[1]].value.z);
+        Real fpp = TwoSum<subType>(s, -shadowValueRight.value.z);
         s = fpp.z;
-        e += fpp.zz - ShadowMap[p[1]].value.zz;
+        e += fpp.zz - shadowValueRight.value.zz;
     }
     return Real(s, e);
 }
 
 template <class divType>
-inline Real Div2(vector<Addr> p) // cost 7 times
+inline Real Div2(vector<Addr> &p) // cost 7 times
 {
     Real fpp;
     int len = p.size();
@@ -312,10 +356,11 @@ inline Real Div2(vector<Addr> p) // cost 7 times
         return 0;
     }
     double s, e, y;
+    Shadow shadowValueLeft, shadowValueRight;
     if (shadowExist(p[1]))
     {
-        s = ShadowMap[p[1]].value.z;
-        e = ShadowMap[p[1]].value.zz;
+        s = shadowValueRight.value.z;
+        e = shadowValueRight.value.zz;
     }
     else
     {
@@ -330,14 +375,14 @@ inline Real Div2(vector<Addr> p) // cost 7 times
     }
     else
     {
-        fpp.z = ShadowMap[p[0]].value.z / (s + e);
-        fpp.zz = ShadowMap[p[0]].value.zz / (s + e);
+        fpp.z = shadowValueLeft.value.z / (s + e);
+        fpp.zz = shadowValueLeft.value.zz / (s + e);
     }
     return fpp;
 }
 
 template <class sumType>
-inline Real Sum2(vector<Addr> p) // cost 7 times
+inline Real Sum2(vector<Addr> &p) // cost 7 times
 {
     int len = p.size();
     if (len == 0)
@@ -345,10 +390,11 @@ inline Real Sum2(vector<Addr> p) // cost 7 times
         return 0;
     }
     double s, e, y;
-    if (shadowExist(p[0]))
+    Shadow shadowValueLeft, shadowValueRight;
+    if (shadowExist(p[0], shadowValueLeft))
     {
-        s = ShadowMap[p[0]].value.z;
-        e = ShadowMap[p[0]].value.zz;
+        s = shadowValueLeft.value.z;
+        e = shadowValueLeft.value.zz;
     }
     else
     {
@@ -357,7 +403,7 @@ inline Real Sum2(vector<Addr> p) // cost 7 times
     }
     for (int i = 1; i < len; i++)
     {
-        if (!shadowExist(p[i]))
+        if (!shadowExist(p[i], shadowValueRight))
         {
             Real fpp = TwoSum<sumType>(s, getValuebyAddr<sumType>(p[i]));
             s = fpp.z;
@@ -365,9 +411,9 @@ inline Real Sum2(vector<Addr> p) // cost 7 times
         }
         else
         {
-            Real fpp = TwoSum<sumType>(s, ShadowMap[p[i]].value.z);
+            Real fpp = TwoSum<sumType>(s, shadowValueRight.value.z);
             s = fpp.z;
-            e += fpp.zz + ShadowMap[p[i]].value.zz;
+            e += fpp.zz + shadowValueRight.value.zz;
         }
     }
     return Real(s, e);
@@ -450,14 +496,15 @@ inline Real prod_dd_dd(Real fp1, Real fp2)
     return r;
 }
 template <class valueType>
-inline Real Mul2(vector<Addr> p)
+inline Real Mul2(vector<Addr> &p)
 {
     int len = p.size();
     Real fpp(1.0), temp(0.0);
+    Shadow shadowValueRight;
     for (int i = 0; i < len; i++)
     {
-        if (shadowExist(p[i]))
-            temp = ShadowMap[p[i]].value;
+        if (shadowExist(p[i], shadowValueRight))
+            temp = shadowValueRight.value;
         else
             temp = Real(getValuebyAddr<valueType>(p[i]));
         fpp = prod_dd_dd(fpp, temp);
@@ -471,31 +518,33 @@ static inline void computeDAdd(Addr address, vector<Addr> paras, std::string s)
 {
     Real realValue = Sum2<double>(paras);
     // std::cout << "higher:" << realValue.z << "remainder:" << realValue.zz << std::endl;
-    if (shadowExist(address))
+    Shadow shadowValueOld;
+    if (shadowExist(address, shadowValueOld))
     {
-        ShadowMap[address].updateInfo(realValue, s);
+        shadowValueOld.updateInfo(realValue, s);
     }
     else
     {
         ShadowMap[address] = Shadow(address, ArgType::DoubleArg, realValue, s);
     }
 }
-static inline void computeDAdd2(Addr address, vector<Addr> paras, std::string posiStr) // bind para nums
+static inline void computeDAdd2(Addr address, Addr paraLeft, Addr paraRight, std::string posiStr) // bind para nums
 {
     double s, e, y;
-    if (shadowExist(paras[0]))
+    Shadow shadowValueLeft, shadowValueRight;
+    if (shadowExist(paraLeft, shadowValueLeft))
     {
-        s = ShadowMap[paras[0]].value.z;
-        e = ShadowMap[paras[0]].value.zz;
+        s = shadowValueLeft.value.z;
+        e = shadowValueLeft.value.zz;
     }
     else
     {
-        s = getValuebyAddr<double>(paras[0]);
+        s = getValuebyAddr<double>(paraLeft);
         e = 0.0;
     }
-    if (!shadowExist(paras[1]))
+    if (!shadowExist(paraRight, shadowValueRight))
     {
-        double valuePara1 = getValuebyAddr<double>(paras[1]);
+        double valuePara1 = getValuebyAddr<double>(paraRight);
         Real fpp;
         // = TwoSum<double>(s, -getValuebyAddr<double>(p[1]));
         fpp.z = s - valuePara1;
@@ -506,15 +555,15 @@ static inline void computeDAdd2(Addr address, vector<Addr> paras, std::string po
     }
     else
     {
-        //Real fpp = TwoSum<double>(s, -ShadowMap[p[1]].value.z);
-        double valuePara1 = getValuebyAddr<double>(paras[1]);
+        //Real fpp = TwoSum<double>(s, -shadowValueRight.value.z);
+        double valuePara1 = getValuebyAddr<double>(paraRight);
         Real fpp;
         // = TwoSum<double>(s, -getValuebyAddr<double>(p[1]));
         fpp.z = s - valuePara1;
         double z = fpp.z - s;
         fpp.zz = s - (fpp.z - z) + (valuePara1 - z);
         s = fpp.z;
-        e += fpp.zz + ShadowMap[paras[1]].value.zz;
+        e += fpp.zz + shadowValueRight.value.zz;
     }
     Real realValue(s, e);
     if (shadowExist(address))
@@ -526,22 +575,23 @@ static inline void computeDAdd2(Addr address, vector<Addr> paras, std::string po
         ShadowMap[address] = Shadow(address, ArgType::DoubleArg, realValue, posiStr);
     }
 }
-static inline void computeDSub2(Addr address, vector<Addr> paras, std::string posiStr) // bind para nums
+static inline void computeDSub2(Addr address, Addr paraLeft, Addr paraRight, std::string posiStr) // bind para nums
 {
     double s, e, y;
-    if (shadowExist(paras[0]))
+    Shadow shadowValueLeft, shadowValueRight;
+    if (shadowExist(paraLeft, shadowValueLeft))
     {
-        s = ShadowMap[paras[0]].value.z;
-        e = ShadowMap[paras[0]].value.zz;
+        s = shadowValueLeft.value.z;
+        e = shadowValueLeft.value.zz;
     }
     else
     {
-        s = getValuebyAddr<double>(paras[0]);
+        s = getValuebyAddr<double>(paraLeft);
         e = 0.0;
     }
-    if (!shadowExist(paras[1]))
+    if (!shadowExist(paraRight, shadowValueRight))
     {
-        double valuePara1 = getValuebyAddr<double>(paras[1]);
+        double valuePara1 = getValuebyAddr<double>(paraRight);
         Real fpp;
         // = TwoSum<double>(s, -getValuebyAddr<double>(p[1]));
         fpp.z = s - valuePara1;
@@ -552,15 +602,15 @@ static inline void computeDSub2(Addr address, vector<Addr> paras, std::string po
     }
     else
     {
-        //Real fpp = TwoSum<double>(s, -ShadowMap[p[1]].value.z);
-        double valuePara1 = getValuebyAddr<double>(paras[1]);
+        //Real fpp = TwoSum<double>(s, -shadowValueRight.value.z);
+        double valuePara1 = getValuebyAddr<double>(paraRight);
         Real fpp;
         // = TwoSum<double>(s, -getValuebyAddr<double>(p[1]));
         fpp.z = s - valuePara1;
         double z = fpp.z - s;
         fpp.zz = s - (fpp.z - z) - (valuePara1 + z);
         s = fpp.z;
-        e += fpp.zz - ShadowMap[paras[1]].value.zz;
+        e += fpp.zz - shadowValueRight.value.zz;
     }
     Real realValue(s, e);
     if (shadowExist(address))
@@ -586,15 +636,16 @@ static inline void computeDSub(Addr address, vector<Addr> paras, std::string s)
     // std::cout << s << std::endl;
 }
 
-static inline void computeDMul2(Addr address, vector<Addr> paras, std::string s)
+static inline void computeDMul2(Addr address, Addr paraLeft, Addr paraRight, std::string s)
 {
     Real realValue;
-    if (shadowExist(paras[0]) && shadowExist(paras[1]))
+    Shadow shadowValueLeft, shadowValueRight;
+    if (shadowExist(paraLeft, shadowValueLeft) && shadowExist(paraRight, shadowValueRight))
     {
-        // realValue = TwoProduct(ShadowMap[paras[0]].value, ShadowMap[paras[1]].value);
+        // realValue = TwoProduct(ShadowMap[paraLeft].value, ShadowMap[paraRight].value);
         Real fp1, fp2;
-        fp1 = ShadowMap[paras[0]].value;
-        fp2 = ShadowMap[paras[1]].value;
+        fp1 = shadowValueLeft.value;
+        fp2 = shadowValueRight.value;
         double p, q;
         p = fp1.z * fp2.z;
         q = fp1.z * fp2.zz + fp2.z * fp1.zz;
@@ -602,13 +653,13 @@ static inline void computeDMul2(Addr address, vector<Addr> paras, std::string s)
         // zz = ((p - z) + q) + tx * ty;
         realValue.zz = ((p - realValue.z) + q) + fp1.zz * fp2.zz;
     }
-    else if (shadowExist(paras[0]))
+    else if (shadowExist(paraLeft, shadowValueLeft))
     {
-        // realValue = TwoProduct(ShadowMap[paras[0]].value, getValuebyAddr<double>(paras[1]));
+        // realValue = TwoProduct(ShadowMap[paraLeft].value, getValuebyAddr<double>(paraRight));
         double para2;
-        para2 = getValuebyAddr<double>(paras[1]);
+        para2 = getValuebyAddr<double>(paraRight);
         Real fp1, fp2;
-        fp1 = ShadowMap[paras[0]].value;
+        fp1 = shadowValueLeft.value;
         double p, q;
         double c = DOUBLEFACTOR * para2;
         fp2.z = c - (c - para2);
@@ -619,13 +670,13 @@ static inline void computeDMul2(Addr address, vector<Addr> paras, std::string s)
         realValue.z = p + q;
         realValue.zz = ((p - realValue.z) + q) + fp1.zz * fp2.zz;
     }
-    else if (shadowExist(paras[1]))
+    else if (shadowExist(paraRight, shadowValueRight))
     {
-        // realValue = TwoProduct(getValuebyAddr<double>(paras[0]), ShadowMap[paras[1]].value);
+        // realValue = TwoProduct(getValuebyAddr<double>(paraLeft), ShadowMap[paraRight].value);
         double para2;
-        para2 = getValuebyAddr<double>(paras[0]);
+        para2 = getValuebyAddr<double>(paraLeft);
         Real fp1, fp2;
-        fp1 = ShadowMap[paras[1]].value;
+        fp1 = shadowValueRight.value;
         double p, q;
         double c = DOUBLEFACTOR * para2;
         fp2.z = c - (c - para2);
@@ -639,12 +690,12 @@ static inline void computeDMul2(Addr address, vector<Addr> paras, std::string s)
     }
     else
     {
-        // realValue = TwoProduct(getValuebyAddr<double>(paras[0]), getValuebyAddr<double>(paras[1]));
+        // realValue = TwoProduct(getValuebyAddr<double>(paraLeft), getValuebyAddr<double>(paraRight));
 
         Real fp1, fp2;
-        double para1,para2;
-        para1 = getValuebyAddr<double>(paras[0]);
-        para2 = getValuebyAddr<double>(paras[1]);
+        double para1, para2;
+        para1 = getValuebyAddr<double>(paraLeft);
+        para2 = getValuebyAddr<double>(paraRight);
 
         double p, q;
 
@@ -677,32 +728,12 @@ static inline void computeDMul2(Addr address, vector<Addr> paras, std::string s)
 }
 static inline void computeDMul3(Addr address, vector<Addr> paras, std::string s)
 {
-
 }
 static inline void computeDMul(Addr address, vector<Addr> paras, std::string s)
 {
     Real realValue;
     if (paras.size() > 2)
         realValue = Mul2<double>(paras);
-    else
-    {
-
-        if (shadowExist(paras[0]) && shadowExist(paras[1]))
-        {
-            realValue = TwoProduct(ShadowMap[paras[0]].value, ShadowMap[paras[1]].value);
-        }
-        else if (shadowExist(paras[0]))
-        {
-
-            realValue = TwoProduct(ShadowMap[paras[0]].value, getValuebyAddr<double>(paras[1]));
-        }
-        else if (shadowExist(paras[1]))
-        {
-            realValue = TwoProduct(getValuebyAddr<double>(paras[0]), ShadowMap[paras[1]].value);
-        }
-        else
-            realValue = TwoProduct(getValuebyAddr<double>(paras[0]), getValuebyAddr<double>(paras[1]));
-    }
     if (shadowExist(address))
     {
         ShadowMap[address].updateInfo(realValue, s);
@@ -715,32 +746,32 @@ static inline void computeDMul(Addr address, vector<Addr> paras, std::string s)
     // std::cout << s << std::endl;
 }
 
-static inline void computeDDiv2(Addr address, vector<Addr> p, std::string posiStr)
+static inline void computeDDiv2(Addr address, Addr paraLeft, Addr paraRight, std::string posiStr)
 {
     // Real realValue = Div2<double>(paras);
     Real realValue;
-    int len = p.size();
+    Shadow shadowValueLeft, shadowValueRight;
     double s, e, y;
-    if (shadowExist(p[1]))
+    if (shadowExist(paraRight, shadowValueRight))
     {
-        s = ShadowMap[p[1]].value.z;
-        e = ShadowMap[p[1]].value.zz;
+        s = shadowValueRight.value.z;
+        e = shadowValueRight.value.zz;
     }
     else
     {
-        s = getValuebyAddr<double>(p[1]);
+        s = getValuebyAddr<double>(paraRight);
         e = 0.0;
     }
     if (s > -ULP && s < ULP)
         s = ULP;
-    if (!shadowExist(p[0]))
+    if (!shadowExist(paraLeft, shadowValueLeft))
     {
-        realValue.z = getValuebyAddr<double>(p[0]) / (s + e);
+        realValue.z = getValuebyAddr<double>(paraLeft) / (s + e);
     }
     else
     {
-        realValue.z = ShadowMap[p[0]].value.z / (s + e);
-        realValue.zz = ShadowMap[p[0]].value.zz / (s + e);
+        realValue.z = shadowValueLeft.value.z / (s + e);
+        realValue.zz = shadowValueLeft.value.zz / (s + e);
     }
 
     if (shadowExist(address))

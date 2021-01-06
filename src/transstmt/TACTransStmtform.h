@@ -96,14 +96,17 @@ private:
 		lastTem = varName;
 		varCount++;
 		if (lastOp != "-" || lastOp != "/")
-							{
-								computeStr = getComputeStr(lastOp, lastType) + (paraCount < 3 ? to_string(paraCount) : "");
-							}
-							else
-							{
-								computeStr = getComputeStr(lastOp, lastType);
-							} // type is the lastop type
-		statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append("toString(biExpr->getExprLoc())").append("\");");
+		{
+			computeStr = getComputeStr(lastOp, lastType) + (paraCount < 3 ? to_string(paraCount) : "");
+		}
+		else
+		{
+			computeStr = getComputeStr(lastOp, lastType);
+		} // type is the lastop type
+		if (paraCount < 3)
+			statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+		else
+			statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append("toString(biExpr->getExprLoc())").append("\");");
 		lastPro = "";
 		lastOp = "";
 		lastType = "";
@@ -236,14 +239,17 @@ private:
 						lastTem = varName;
 						varCount++;
 						if (lastOp != "-" || lastOp != "/")
-							{
-								computeStr = getComputeStr(lastOp, lastType) + (paraCount < 3 ? to_string(paraCount) : "");
-							}
-							else
-							{
-								computeStr = getComputeStr(lastOp, lastType);
-							} // type is the lastop type
-						statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append("toString(biExpr->getExprLoc())").append("\");");
+						{
+							computeStr = getComputeStr(lastOp, lastType) + (paraCount < 3 ? to_string(paraCount) : "");
+						}
+						else
+						{
+							computeStr = getComputeStr(lastOp, lastType);
+						} // type is the lastop type
+						if (paraCount < 3)
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+						else
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append("toString(biExpr->getExprLoc())").append("\");");
 						operatorTmpPreCallexpStream.push_back(statment);
 						statment = "";
 						lastPro = "";
@@ -416,7 +422,10 @@ private:
 					{
 						computeStr = getComputeStr(lastOp, type);
 					}
-					statment.append(computeStr).append("((Addr)&").append(leftVarStr).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+					if (paraCount < 3)
+						statment.append(computeStr).append("((Addr)&").append(leftVarStr).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+					else
+						statment.append(computeStr).append("((Addr)&").append(leftVarStr).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 					lastPro = "";
 					lastOp = "";
 					paraStr = "";
@@ -477,7 +486,10 @@ private:
 								{
 									computeStr = getComputeStr(lastOp, type);
 								}
-								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+								if (paraCount < 3)
+									statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+								else
+									statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 								paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
 								paraCount = 2;
@@ -527,7 +539,10 @@ private:
 							{
 								computeStr = getComputeStr(lastOp, type);
 							}
-							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+							if (paraCount < 3)
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+							else
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 							paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
 							paraCount = 2;
@@ -560,7 +575,10 @@ private:
 							{
 								computeStr = getComputeStr(lastOp, type);
 							}
-							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+							if (paraCount < 3)
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+							else
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 							lastPro = leftVarStr + " " + op + " " + rightVarStr;
 							paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
@@ -599,7 +617,10 @@ private:
 						{
 							computeStr = getComputeStr(lastOp, type);
 						}
-						statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+						if (paraCount < 3)
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+						else
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 						lastPro = leftVarStr + " " + op + " " + rightVarStr;
 						paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
@@ -641,7 +662,10 @@ private:
 								{
 									computeStr = getComputeStr(lastOp, type);
 								}
-								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+								if (paraCount < 3)
+									statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+								else
+									statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 								lastPro = leftVarStr + " " + op + " " + rightVarStr;
 								paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
 								paraCount = 2;
@@ -687,7 +711,10 @@ private:
 							{
 								computeStr = getComputeStr(lastOp, type);
 							}
-							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+							if (paraCount < 3)
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+							else
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 							paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
 							paraCount = 2;
@@ -714,8 +741,10 @@ private:
 							{
 								computeStr = getComputeStr(lastOp, type);
 							}
-
-							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+							if (paraCount < 3)
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+							else
+								statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 							lastPro = leftVarStr + " " + op + " " + rightVarStr;
 							paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
@@ -754,7 +783,10 @@ private:
 						{
 							computeStr = getComputeStr(lastOp, type);
 						}
-						statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
+						if (paraCount < 3)
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",").append(paraStr).append(",\"").append("toString(biExpr->getExprLoc())").append("\");");
+						else
+							statment.append(computeStr).append("((Addr)&").append(varName).append(",{").append(paraStr).append("},\"").append(toString(biExpr->getExprLoc())).append("\");");
 
 						lastPro = leftVarStr + " " + op + " " + rightVarStr;
 						paraStr = LRVar(leftVar) + "," + LRVar(rightVar);
